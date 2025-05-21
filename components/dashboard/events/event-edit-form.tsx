@@ -22,7 +22,7 @@ import { format, parseISO } from "date-fns";
 import { CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/components/ui/use-toast";
-import { CldUploadButton } from "next-cloudinary";
+// import { CldUploadButton } from "next-cloudinary";
 import { EventType } from "@/app/models/Event";
 import { CategoryCreationResponseType } from "@/app/models/Categories";
 import { Calendar } from "@/components/ui/calendar";
@@ -42,6 +42,12 @@ import {
 } from "@/actions/ticket.action";
 import { validateEventDescription } from "@/actions/ai-validation";
 import ValidationModal from "./validation-modal";
+import dynamic from "next/dynamic";
+
+const CldUploadButton = dynamic(
+	() => import("next-cloudinary").then((mod) => mod.CldUploadButton),
+	{ ssr: false }
+);
 
 interface EventEditFormProps {
 	event: EventType;

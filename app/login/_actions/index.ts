@@ -64,7 +64,7 @@ export async function login(email: string, password: string): Promise<VerifiedOr
 
         if (!response.ok) {
             const errorData = await response.json();
-            // Handle the specific {"error":"Invalid credentials"} format
+            
             if (errorData.error) {
                 throw new Error(JSON.stringify(errorData));
             }

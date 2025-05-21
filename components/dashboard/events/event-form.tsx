@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import dynamic from "next/dynamic";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -27,7 +28,8 @@ import { createEvent } from "@/actions/event.action";
 import { createTicket } from "@/actions/ticket.action";
 import { useAuth } from "@/hooks/use-auth";
 import { Calendar } from "@/components/ui/calendar";
-import { CldUploadButton } from "next-cloudinary";
+// Replace direct import with dynamic import
+// import { CldUploadButton } from "next-cloudinary";
 import { CategoryCreationResponseType } from "@/app/models/Categories";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
@@ -37,6 +39,12 @@ import MenuBar from "@/components/ui/tip-tap-menu-bar";
 import LocationInputWithMap from "./locationInputMap";
 import { validateEventDescription } from "@/actions/ai-validation";
 import ValidationModal from "./validation-modal";
+
+// Dynamically import Cloudinary components with no SSR
+const CldUploadButton = dynamic(
+	() => import('next-cloudinary').then((mod) => mod.CldUploadButton),
+	{ ssr: false }
+);
 
 interface EventFormProps {
 	categories: CategoryCreationResponseType[];
