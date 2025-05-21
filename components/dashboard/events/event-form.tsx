@@ -451,7 +451,7 @@ export function EventForm({ categories }: EventFormProps) {
 
 			{/* Location */}
 			<div className="space-y-2">
-				<Label htmlFor="location">Location *</Label>
+				{/* <Label htmlFor="location">Location *</Label> */}
 				{/* <Input
 					id="location"
 					name="location"
@@ -575,7 +575,7 @@ export function EventForm({ categories }: EventFormProps) {
 				>
 					Cancel
 				</Button>
-				<Button type="submit" className="w-full" disabled={isLoading || isValidating}>
+				<Button type="submit" className="w-[200px]" disabled={isLoading || isValidating}>
 					{isLoading 
 						? "Creating Event..." 
 						: isValidating

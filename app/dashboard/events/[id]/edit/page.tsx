@@ -84,7 +84,7 @@ export default function EventPage() {
     }, [getAccessToken, user, eventId, toast]);
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-6 overflow-hidden">
             <Card>
                 <CardHeader>
                     <CardTitle>Event Details</CardTitle>

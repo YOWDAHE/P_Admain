@@ -34,7 +34,7 @@ export default function EventsPage() {
 	}, [getAccessToken, user?.id]);
 
 	return (
-		<div className="space-y-6">
+		<div className="space-y-6 overflow-hidden">
 			<div className="flex items-center justify-between">
 				<h1 className="text-3xl font-bold">My Events</h1>
 				<Button asChild>
