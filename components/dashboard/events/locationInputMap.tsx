@@ -1,23 +1,43 @@
+"use client";
+
 import React, { useState, useRef, useEffect, ChangeEvent } from "react";
-import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
-import "leaflet/dist/leaflet.css";
-import L, { Marker as LeafletMarker, Map as LeafletMap } from "leaflet";
+import dynamic from "next/dynamic";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { OpenStreetMapProvider, GeoSearchControl } from "leaflet-geosearch";
+import "leaflet/dist/leaflet.css";
 
-// Fix Leaflet marker icons
-delete (L.Icon.Default.prototype as any)._getIconUrl;
+// Dynamically import Leaflet components with no SSR
+const MapContainer = dynamic(
+	() => import("react-leaflet").then((mod) => mod.MapContainer),
+	{ ssr: false }
+);
 
-L.Icon.Default.mergeOptions({
-	iconRetinaUrl:
-		"https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png",
-	iconUrl:
-		"https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png",
-	shadowUrl:
-		"https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
-});
+const TileLayer = dynamic(
+	() => import("react-leaflet").then((mod) => mod.TileLayer),
+	{ ssr: false }
+);
+
+const Marker = dynamic(
+	() => import("react-leaflet").then((mod) => mod.Marker),
+	{ ssr: false }
+);
+
+const Popup = dynamic(
+	() => import("react-leaflet").then((mod) => mod.Popup),
+	{ ssr: false }
+);
+
+// L.Icon.Default.mergeOptions({
+// 	iconRetinaUrl:
+// 		"https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png",
+// 	iconUrl:
+// 		"https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png",
+// 	shadowUrl:
+// 		"https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
+// });
+
+const isBrowser = () => typeof window !== "undefined";
 
 const LocationInputWithMap = ({
 	label,
@@ -37,10 +57,35 @@ const LocationInputWithMap = ({
 	const [searchResults, setSearchResults] = useState<any[]>([]);
 	const [selectedResult, setSelectedResult] = useState<any | null>(null);
 	const [mapCenter, setMapCenter] = useState<[number, number]>([0, 0]);
-	const mapRef = useRef<LeafletMap | null>(null);
-	const markerRef = useRef<LeafletMarker | null>(null);
-	const searchProvider = new OpenStreetMapProvider();
+	const mapRef = useRef<any | null>(null);
+	const markerRef = useRef<any | null>(null);
 	const debounceTimeout = useRef<any>(null);
+	const [searchProvider, setSearchProvider] = useState<any>(null);
+	const [leafletLoaded, setLeafletLoaded] = useState(false);
+
+	// Initialize Leaflet and search provider only on client side
+	useEffect(() => {
+		if (!isBrowser()) return;
+		
+		// Dynamic import for Leaflet
+		import('leaflet').then((L) => {
+			// Fix Leaflet marker icons
+			delete (L.Icon.Default.prototype as any)._getIconUrl;
+
+			L.Icon.Default.mergeOptions({
+				iconRetinaUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png",
+				iconUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png",
+				shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
+			});
+			
+			setLeafletLoaded(true);
+		});
+		
+		// Dynamic import for search provider
+		import('leaflet-geosearch').then(({ OpenStreetMapProvider }) => {
+			setSearchProvider(new OpenStreetMapProvider());
+		});
+	}, []);
 
 	// Debounce the search input
 	const debouncedSearch = (query: string) => {
@@ -49,7 +94,7 @@ const LocationInputWithMap = ({
 		}
 
 		debounceTimeout.current = setTimeout(async () => {
-			if (!query) {
+			if (!query || !searchProvider) {
 				setSearchResults([]);
 				return;
 			}
@@ -81,41 +126,45 @@ const LocationInputWithMap = ({
 
 	// Add the geosearch control to the map when it's ready
 	useEffect(() => {
-		if (!mapRef.current) return;
+		if (!mapRef.current || !searchProvider || !isBrowser()) return;
 
-		const searchControl = new GeoSearchControl({
-			provider: searchProvider,
-			style: "button",
-			showMarker: false,
-			showPopup: false,
-			autoClose: true,
-			keepResult: true,
-			updateMap: true,
-			marker: {
-				icon: L.icon({
-					iconUrl:
-						"https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png",
-					shadowUrl:
-						"https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
-				}),
-				panToResult: true,
-			},
+		// Dynamic import for GeoSearchControl
+		import('leaflet-geosearch').then(({ GeoSearchControl }) => {
+			import('leaflet').then((L) => {
+				// Type assertion to fix the linter error
+				const searchControl = new (GeoSearchControl as any)({
+					provider: searchProvider,
+					style: "button",
+					showMarker: false,
+					showPopup: false,
+					autoClose: true,
+					keepResult: true,
+					updateMap: true,
+					marker: {
+						icon: L.icon({
+							iconUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png",
+							shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
+						}),
+						panToResult: true,
+					},
+				});
+
+				mapRef.current.addControl(searchControl);
+			});
 		});
 
-		mapRef.current.addControl(searchControl);
-
 		return () => {
-			mapRef.current?.removeControl(searchControl);
+			if (mapRef.current?.controls) {
+				mapRef.current.removeControl(mapRef.current.controls[0]);
+			}
 		};
-	}, []);
+	}, [searchProvider, mapRef.current]);
 
 	// Update map center when selectedResult changes
 	useEffect(() => {
-		if (selectedResult) {
+		if (selectedResult && mapRef.current) {
 			setMapCenter([selectedResult.y, selectedResult.x]);
-			if (mapRef.current) {
-				mapRef.current.flyTo([selectedResult.y, selectedResult.x], 13);
-			}
+			mapRef.current.flyTo([selectedResult.y, selectedResult.x], 13);
 		}
 	}, [selectedResult]);
 
@@ -139,7 +188,7 @@ const LocationInputWithMap = ({
 				readOnly
 				required
 			/>
-			{popupVisible && (
+			{popupVisible && leafletLoaded && (
 				<div
 					className="absolute z-50 inset-0 bg-black bg-opacity-70 flex items-center justify-center p-10"
 					onClick={() => {

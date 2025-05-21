@@ -9,6 +9,9 @@ import { refreshToken } from "@/actions/auth";
 import { cookies } from "next/headers";
 import { useRouter } from "next/navigation";
 
+// Helper function to check if code is running in browser
+const isBrowser = () => typeof window !== 'undefined';
+
 const AuthContext = createContext<{
     user: Organization | null;
     tokens: Tokens | null;
@@ -28,6 +31,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     const router = useRouter()
 
     useEffect(() => {
+        // Only run on the client side
+        if (!isBrowser()) return;
+        
         const storedUser = localStorage.getItem("user");
         const storedTokens = localStorage.getItem("tokens");
 
@@ -51,16 +57,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
         console.log(user, tokens);
 
-        localStorage.setItem("user", JSON.stringify(user));
-        localStorage.setItem("tokens", JSON.stringify(tokens));
+        if (isBrowser()) {
+            localStorage.setItem("user", JSON.stringify(user));
+            localStorage.setItem("tokens", JSON.stringify(tokens));
+        }
     };
 
     const logout = () => {
         setUser(null);
         setTokens(null);
 
-        localStorage.removeItem("user");
-        localStorage.removeItem("tokens");
+        if (isBrowser()) {
+            localStorage.removeItem("user");
+            localStorage.removeItem("tokens");
+        }
         router.replace('/login');
     };
 
@@ -73,7 +83,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         };
         
         setUser(updatedUser);
-        localStorage.setItem("user", JSON.stringify(updatedUser));
+        if (isBrowser()) {
+            localStorage.setItem("user", JSON.stringify(updatedUser));
+        }
     };
 
     const getAccessToken = () => {
@@ -93,17 +105,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
         try {
             await refreshToken(refresh);
-            const updatedAccessToken = localStorage.getItem("accessToken");
+            
+            if (isBrowser()) {
+                const updatedAccessToken = localStorage.getItem("accessToken");
 
-            if (updatedAccessToken) {
-                setTokens((prevTokens) => ({
-                    ...prevTokens,
-                    access: updatedAccessToken,
-                    refresh: prevTokens?.refresh || "",
-                }));
-                console.log("Access token updated successfully.");
-            } else {
-                console.error("Failed to update access token.");
+                if (updatedAccessToken) {
+                    setTokens((prevTokens) => ({
+                        ...prevTokens,
+                        access: updatedAccessToken,
+                        refresh: prevTokens?.refresh || "",
+                    }));
+                    console.log("Access token updated successfully.");
+                } else {
+                    console.error("Failed to update access token.");
+                }
             }
         } catch (error) {
             console.error("Error updating access token:", error);
