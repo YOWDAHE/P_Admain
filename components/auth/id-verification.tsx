@@ -22,9 +22,9 @@ import {
 	DialogDescription,
 	DialogFooter,
 } from "@/components/ui/dialog";
-import { CldUploadButton } from "next-cloudinary";
 import { Shield, AlertTriangle } from "lucide-react";
 import { updateOrganizerVerification } from "@/actions/auth";
+import { CloudinaryUploader } from "@/components/cloudinary-uploader";
 
 interface IdVerificationProps {
 	email: string;
@@ -145,7 +145,7 @@ export function IdVerification({
 									<p className="text-sm text-gray-500 mb-4">
 										Upload a clear photo of your ID card, National ID, passport, or driver's license
 									</p>
-									<CldUploadButton
+									<CloudinaryUploader
 										uploadPreset="id_documents"
 										className="bg-blue-500 px-6 py-2 text-white rounded-md"
 										onSuccess={(result) => {
@@ -176,7 +176,7 @@ export function IdVerification({
 										}}
 									>
 										{isUploading ? "Uploading..." : "Upload ID Document"}
-									</CldUploadButton>
+									</CloudinaryUploader>
 								</div>
 							)}
 						</div>

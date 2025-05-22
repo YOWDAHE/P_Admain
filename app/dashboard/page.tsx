@@ -1,5 +1,5 @@
-'use client';
-import { useState, useEffect } from 'react';
+"use client";
+import { useState, useEffect } from "react";
 import {
 	Card,
 	CardContent,
@@ -13,16 +13,22 @@ import { useAuth } from "@/hooks/use-auth";
 import { fetchOrganizationAnalytics } from "@/actions/analytics.action";
 import { getEventsByOrganizer } from "@/actions/event.action";
 import { AnalyticsData } from "@/app/models/analytics";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, Info } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AnalyticsChart } from "@/components/dashboard/analytics/analytics-chart";
+import { VerificationAlert } from "@/components/dashboard/verification-alert";
+import { Button } from "@/components/ui/button";
+import { useRouter } from "next/navigation";
 
 export default function DashboardPage() {
-	const { user, tokens } = useAuth();
+	const { user, tokens, logout } = useAuth();
+	const router = useRouter();
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 	const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null);
 	const [events, setEvents] = useState<any[]>([]);
+	const [isAnalyticsVerificationError, setIsAnalyticsVerificationError] =
+		useState(false);
 
 	useEffect(() => {
 		async function fetchDashboardData() {
@@ -30,18 +36,23 @@ export default function DashboardPage() {
 			setError(null);
 
 			try {
-				// Only proceed if we have a logged-in user
 				if (!user || !user.id) {
+					logout();
 					setError("Authentication required");
 					setLoading(false);
 					return;
 				}
 
-				// Fetch analytics data
-				const analytics = await fetchOrganizationAnalytics(user.id);
-				setAnalyticsData(analytics);
+				const analyticsResponse = await fetchOrganizationAnalytics(user.id);
 
-				// Fetch recent events
+				if (analyticsResponse.success && analyticsResponse.data) {
+					setAnalyticsData(analyticsResponse.data);
+				} else if (analyticsResponse.isVerificationError) {
+					setIsAnalyticsVerificationError(true);
+				} else if (analyticsResponse.error) {
+					console.error("Analytics error:", analyticsResponse.error);
+				}
+
 				const eventsResponse = await getEventsByOrganizer(user.id);
 				if (eventsResponse.success && eventsResponse.data) {
 					// Get the most recent 5 events
@@ -61,12 +72,12 @@ export default function DashboardPage() {
 		fetchDashboardData();
 	}, [user]);
 
-	// Calculate stats from analytics data
+	// Calculate stats from analytics data or use zeros as defaults
 	const stats = {
-		totalEvents: analyticsData?.events.total || 0,
-		totalUsers: analyticsData?.users.total || 0,
+		totalEvents: analyticsData?.events?.total || 0,
+		totalUsers: analyticsData?.users?.total || 0,
 		totalTickets: 0, // Currently not provided by the API
-		totalRevenue: analyticsData?.revenue.total || 0,
+		totalRevenue: analyticsData?.revenue?.total || 0,
 	};
 
 	if (loading) {
@@ -90,6 +101,32 @@ export default function DashboardPage() {
 	return (
 		<div className="space-y-6 overflow-hidden">
 			<h1 className="text-3xl font-bold">Dashboard</h1>
+
+			{/* Verification Status Alert */}
+			{user?.profile && (
+				<VerificationAlert verificationStatus={user.profile.verification_status} />
+			)}
+
+			{/* Show analytics verification error if present */}
+			{isAnalyticsVerificationError && (
+				<Alert className="border-yellow-500 bg-yellow-50">
+					<Info className="h-5 w-5 text-yellow-500" />
+					<AlertTitle>Analytics Not Available</AlertTitle>
+					<AlertDescription>
+						<p className="mb-4">
+							Analytics are only available for non verified organizations. Complete the
+							verification process to access detailed analytics for your events.
+						</p>
+						<Button
+							variant="outline"
+							onClick={() => router.push("/dashboard/settings")}
+							className="bg-white hover:bg-yellow-100 border-yellow-400 text-yellow-700"
+						>
+							Go to Settings to Verify
+						</Button>
+					</AlertDescription>
+				</Alert>
+			)}
 
 			<DashboardStats stats={stats} />
 
@@ -118,13 +155,15 @@ export default function DashboardPage() {
 					</CardHeader>
 					<CardContent>
 						{analyticsData ? (
-							<AnalyticsChart 
-								type="events" 
-								data={analyticsData.event_growth} 
-							/>
+							<AnalyticsChart type="events" data={analyticsData.event_growth} />
 						) : (
 							<div className="text-center p-6 text-muted-foreground">
 								<p>No analytics data available.</p>
+								{isAnalyticsVerificationError && (
+									<p className="text-sm mt-2 text-yellow-600">
+										Analytics will be enabled after verification.
+									</p>
+								)}
 							</div>
 						)}
 					</CardContent>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import dynamic from "next/dynamic";
@@ -20,7 +20,7 @@ import {
 	PopoverContent,
 	PopoverTrigger,
 } from "@/components/ui/popover";
-import { format } from "date-fns";
+import { format, parseISO, isBefore, startOfDay } from "date-fns";
 import { CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/components/ui/use-toast";
@@ -28,23 +28,18 @@ import { createEvent } from "@/actions/event.action";
 import { createTicket } from "@/actions/ticket.action";
 import { useAuth } from "@/hooks/use-auth";
 import { Calendar } from "@/components/ui/calendar";
-// Replace direct import with dynamic import
-// import { CldUploadButton } from "next-cloudinary";
 import { CategoryCreationResponseType } from "@/app/models/Categories";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
-import TextAlign from "@tiptap/extension-text-align"
-import Highlight from "@tiptap/extension-highlight"
+import TextAlign from "@tiptap/extension-text-align";
+import Highlight from "@tiptap/extension-highlight";
 import MenuBar from "@/components/ui/tip-tap-menu-bar";
 import LocationInputWithMap from "./locationInputMap";
 import { validateEventDescription } from "@/actions/ai-validation";
 import ValidationModal from "./validation-modal";
-
-// Dynamically import Cloudinary components with no SSR
-const CldUploadButton = dynamic(
-	() => import('next-cloudinary').then((mod) => mod.CldUploadButton),
-	{ ssr: false }
-);
+import { Info } from "lucide-react";
+import { CloudinaryUploader } from "@/components/cloudinary-uploader";
+import { TagInput } from "@/components/ui/tag-input";
 
 interface EventFormProps {
 	categories: CategoryCreationResponseType[];
@@ -56,13 +51,19 @@ export function EventForm({ categories }: EventFormProps) {
 	const [isLoading, setIsLoading] = useState(false);
 	const { getAccessToken, user } = useAuth();
 
-	// Form state
+	// Check verification status
+	const isVerified = user?.profile?.verification_status === "approved";
+
+	// Other state variables
 	const [title, setTitle] = useState("");
 	const [description, setDescription] = useState("");
 	const [lat, setLat] = useState(0);
 	const [lon, setLon] = useState(0);
-	const [startDate, setStartDate] = useState<Date | undefined>(new Date());
-	const [endDate, setEndDate] = useState<Date | undefined>(new Date());
+	
+	// Initialize dates with today's date
+	const today = new Date();
+	const [startDate, setStartDate] = useState<Date | undefined>(today);
+	const [endDate, setEndDate] = useState<Date | undefined>(today);
 	const [startTime, setStartTime] = useState<Date | undefined>(new Date());
 	const [endTime, setEndTime] = useState<Date | undefined>(new Date());
 	const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -70,17 +71,23 @@ export function EventForm({ categories }: EventFormProps) {
 	const [location, setLocation] = useState<string>(
 		JSON.stringify({ name: null, latitude: null, longitude: null })
 	);
-	const [isPublic, setIsPublic] = useState<boolean>(true);
-	const [onsitePayment, setOnsitePayment] = useState<boolean>(false); // New field
-	const [hashtags, setHashtags] = useState<string>(""); // New field for hashtags input
+	
+	// Set isPublic to false by default for unverified users
+	const [isPublic, setIsPublic] = useState<boolean>(isVerified);
+	const [onsitePayment, setOnsitePayment] = useState<boolean>(false);
+	const [hashtags, setHashtags] = useState<string>("");
 	const [tickets, setTickets] = useState<{ name: string; price: string }[]>([
 		{ name: "", price: "" },
 	]);
 
-	const [validationMessage, setValidationMessage] = useState<string | null>(null);
+	const [validationMessage, setValidationMessage] = useState<string | null>(
+		null
+	);
 	const [isValidating, setIsValidating] = useState(false);
-	const [isDescriptionValid, setIsDescriptionValid] = useState<boolean | null>(null);
-	
+	const [isDescriptionValid, setIsDescriptionValid] = useState<boolean | null>(
+		null
+	);
+
 	const [showValidationModal, setShowValidationModal] = useState(false);
 	const [validationResult, setValidationResult] = useState<{
 		success: boolean;
@@ -154,65 +161,96 @@ export function EventForm({ categories }: EventFormProps) {
 				success: false,
 				isEventRelated: false,
 				confidence: 0,
-				message: "Description is too short to validate."
+				message: "Description is too short to validate.",
 			};
-			
+
 			setValidationMessage(result.message);
 			setIsDescriptionValid(false);
 			setValidationResult(result);
-			
+
 			if (showModal) {
 				setShowValidationModal(true);
 			}
-			
+
 			return false;
 		}
-		
+
 		setIsValidating(true);
 		setValidationMessage("Validating description...");
-		
+
 		if (showModal) {
 			setShowValidationModal(true);
 		}
-		
+
 		try {
 			const validation = await validateEventDescription(description);
-			
+
 			setIsDescriptionValid(validation.isEventRelated);
 			setValidationMessage(validation.message);
 			setValidationResult(validation);
-			
+
 			if (validation.isEventRelated && showModal) {
 				setShowValidationModal(false);
 			}
-			
+
 			return validation.isEventRelated;
 		} catch (error) {
 			console.error("Error during validation:", error);
-			
+
 			const errorResult = {
 				success: false,
 				isEventRelated: false,
 				confidence: 0,
-				message: "Error validating description. Please try again."
+				message: "Error validating description. Please try again.",
 			};
-			
+
 			setValidationMessage(errorResult.message);
 			setValidationResult(errorResult);
-			
+
 			return false;
 		} finally {
 			setIsValidating(false);
 		}
 	};
 
+	// Function to check if a date is before today (to disable past dates)
+	const isDateBeforeToday = (date: Date) => {
+		const today = new Date();
+		today.setHours(0, 0, 0, 0);
+		return date < today;
+	};
+
+	// Function to check if a date is before the start date (to disable invalid end dates)
+	const isDateBeforeStartDate = (date: Date) => {
+		if (!startDate) return false;
+		
+		// Create copies to compare just the dates, not times
+		const startDateCopy = new Date(startDate);
+		startDateCopy.setHours(0, 0, 0, 0);
+		
+		const dateCopy = new Date(date);
+		dateCopy.setHours(0, 0, 0, 0);
+		
+		return dateCopy < startDateCopy;
+	};
+
+	// Function to handle start date changes
+	const handleStartDateChange = (date: Date | undefined) => {
+		setStartDate(date);
+		
+		// If end date is before the new start date, update end date to match start date
+		if (date && endDate && new Date(date) > new Date(endDate)) {
+			setEndDate(date);
+		}
+	};
+
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
-		
+
 		setIsLoading(true);
-		
+
 		const isValid = await validateDescription(true);
-		
+
 		if (!isValid) {
 			setIsLoading(false);
 			return;
@@ -234,6 +272,20 @@ export function EventForm({ categories }: EventFormProps) {
 				throw new Error("Please provide a name and price for all tickets.");
 			}
 
+			// Force is_public to false for unverified users as a security measure
+			const is_public_value = isVerified ? isPublic : false;
+			
+			// If an unverified user somehow managed to set isPublic to true, display a warning
+			if (!isVerified && isPublic) {
+				toast({
+					title: "Public events unavailable",
+					description: "Only verified organizers can create public events. Your event will be set to private.",
+					variant: "default",
+					className: "bg-yellow-50 border-yellow-200 text-yellow-800",
+				});
+				setIsPublic(false);
+			}
+
 			const eventData = {
 				category: [Number(selectedCategory)],
 				title,
@@ -246,7 +298,7 @@ export function EventForm({ categories }: EventFormProps) {
 				latitude: lat,
 				longitude: lon,
 				cover_image_url: coverImageUrl || "",
-				is_public: isPublic,
+				is_public: is_public_value,
 				onsite_payement: onsitePayment,
 				hashtags_list: hashtags.split(",").map((tag) => tag.trim()),
 			};
@@ -299,6 +351,23 @@ export function EventForm({ categories }: EventFormProps) {
 
 	return (
 		<form onSubmit={handleSubmit} className="space-y-6">
+			{/* Verification notice for unverified users */}
+			{!isVerified && (
+				<div className="mb-6 p-4 border border-yellow-200 bg-yellow-50 rounded-md">
+					<div className="flex items-start">
+						<Info className="h-5 w-5 text-yellow-500 mt-0.5 mr-3" />
+						<div>
+							<h3 className="font-medium text-yellow-800">Account Verification Required</h3>
+							<p className="text-sm text-yellow-700 mt-1">
+								Your account is not verified yet. You can create events, but they will be private only.
+								To create public events, please complete the verification process in your 
+								<a href="/dashboard/settings" className="text-blue-600 underline ml-1">account settings</a>.
+							</p>
+						</div>
+					</div>
+				</div>
+			)}
+			
 			{/* Event Title */}
 			<div className="space-y-2">
 				<Label htmlFor="title">Event Title *</Label>
@@ -319,24 +388,26 @@ export function EventForm({ categories }: EventFormProps) {
 					<MenuBar editor={editor} />
 					<EditorContent editor={editor} />
 				</div>
-				
+
 				{/* Add validation message */}
 				{validationMessage && (
-					<div className={`mt-2 text-sm rounded-md p-2 ${
-						isDescriptionValid === true 
-							? "bg-green-50 text-green-700 border border-green-200" 
-							: isDescriptionValid === false
+					<div
+						className={`mt-2 text-sm rounded-md p-2 ${
+							isDescriptionValid === true
+								? "bg-green-50 text-green-700 border border-green-200"
+								: isDescriptionValid === false
 								? "bg-red-50 text-red-700 border border-red-200"
 								: "bg-blue-50 text-blue-700 border border-blue-200"
-					}`}>
+						}`}
+					>
 						{validationMessage}
 					</div>
 				)}
-				
+
 				{/* Add validation button */}
-				<Button 
-					type="button" 
-					variant="outline" 
+				<Button
+					type="button"
+					variant="outline"
 					size="sm"
 					className="mt-2"
 					onClick={() => validateDescription(true)}
@@ -367,7 +438,8 @@ export function EventForm({ categories }: EventFormProps) {
 							<Calendar
 								mode="single"
 								selected={startDate}
-								onSelect={setStartDate}
+								onSelect={handleStartDateChange}
+								disabled={isDateBeforeToday}
 								initialFocus
 							/>
 						</PopoverContent>
@@ -411,6 +483,7 @@ export function EventForm({ categories }: EventFormProps) {
 								mode="single"
 								selected={endDate}
 								onSelect={setEndDate}
+								disabled={(date) => isDateBeforeToday(date) || isDateBeforeStartDate(date)}
 								initialFocus
 							/>
 						</PopoverContent>
@@ -472,7 +545,7 @@ export function EventForm({ categories }: EventFormProps) {
 					label="Location"
 					value={JSON.parse(location)}
 					onChange={(newLocation) => {
-						setLocation(JSON.stringify(newLocation))
+						setLocation(JSON.stringify(newLocation));
 						setLat(newLocation.latitude);
 						setLon(newLocation.longitude);
 					}}
@@ -481,15 +554,36 @@ export function EventForm({ categories }: EventFormProps) {
 
 			{/* Is Public */}
 			<div className="space-y-2">
-				<Label htmlFor="isPublic">Is Public</Label>
-				<div className="flex items-center space-x-2">
-					<input
-						id="isPublic"
-						type="checkbox"
-						checked={isPublic}
-						onChange={(e) => setIsPublic(e.target.checked)}
-					/>
-					<Label htmlFor="isPublic">Make this event public</Label>
+				<Label htmlFor="isPublic" className="flex items-center justify-between">
+					<span>Is Public</span>
+					{!isVerified && (
+						<span className="text-xs text-yellow-600 font-normal">
+							Verification required
+						</span>
+					)}
+				</Label>
+				<div className="flex flex-col space-y-2">
+					<div className="flex items-center space-x-2">
+						<input
+							id="isPublic"
+							type="checkbox"
+							checked={isPublic}
+							onChange={(e) => isVerified && setIsPublic(e.target.checked)}
+							disabled={!isVerified}
+							className={!isVerified ? "opacity-50 cursor-not-allowed" : ""}
+						/>
+						<Label 
+							htmlFor="isPublic"
+							className={!isVerified ? "opacity-70" : ""}
+						>
+							Make this event public
+						</Label>
+					</div>
+					{!isVerified && (
+						<p className="text-xs text-gray-500 mt-1">
+							Only verified organizers can create public events. Please complete verification in settings to enable this option.
+						</p>
+					)}
 				</div>
 			</div>
 
@@ -525,22 +619,24 @@ export function EventForm({ categories }: EventFormProps) {
 				{coverImageUrl.length > 0 && (
 					<Image src={coverImageUrl[0]} width={200} height={200} alt="Cover Image" />
 				)}
-				<CldUploadButton
+				<CloudinaryUploader
 					uploadPreset="organizers"
 					className="bg-blue-500 px-10 py-2 text-white rounded-sm block"
-					onSuccess={(result) => {
+					onSuccess={(result: any) => {
 						const files = Array.isArray(result.info) ? result.info : [result.info];
-						const urls = files.map((file) => file.secure_url);
+						const urls = files.map((file: any) => file.secure_url);
 						setCoverImageUrl((prev) => [...prev, ...urls]);
 					}}
-					onError={(e) => {
+					onError={(e: any) => {
 						console.error(e);
 					}}
 					options={{
 						multiple: true,
 						resourceType: "auto",
 					}}
-				/>
+				>
+					Upload Cover Image
+				</CloudinaryUploader>
 			</div>
 
 			{/* Tickets */}
@@ -583,13 +679,16 @@ export function EventForm({ categories }: EventFormProps) {
 				>
 					Cancel
 				</Button>
-				<Button type="submit" className="w-[200px]" disabled={isLoading || isValidating}>
-					{isLoading 
-						? "Creating Event..." 
+				<Button
+					type="submit"
+					className="w-[200px]"
+					disabled={isLoading || isValidating}
+				>
+					{isLoading
+						? "Creating Event..."
 						: isValidating
-							? "Validating..."
-							: "Create Event"
-					}
+						? "Validating..."
+						: "Create Event"}
 				</Button>
 			</div>
 

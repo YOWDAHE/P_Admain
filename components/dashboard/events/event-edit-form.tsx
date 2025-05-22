@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
@@ -18,11 +18,10 @@ import {
 	PopoverContent,
 	PopoverTrigger,
 } from "@/components/ui/popover";
-import { format, parseISO } from "date-fns";
+import { format, parseISO, isBefore } from "date-fns";
 import { CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/components/ui/use-toast";
-// import { CldUploadButton } from "next-cloudinary";
 import { EventType } from "@/app/models/Event";
 import { CategoryCreationResponseType } from "@/app/models/Categories";
 import { Calendar } from "@/components/ui/calendar";
@@ -42,12 +41,7 @@ import {
 } from "@/actions/ticket.action";
 import { validateEventDescription } from "@/actions/ai-validation";
 import ValidationModal from "./validation-modal";
-import dynamic from "next/dynamic";
-
-const CldUploadButton = dynamic(
-	() => import("next-cloudinary").then((mod) => mod.CldUploadButton),
-	{ ssr: false }
-);
+import { CloudinaryUploader } from "@/components/cloudinary-uploader";
 
 interface EventEditFormProps {
 	event: EventType;
@@ -154,6 +148,30 @@ export function EventEditForm({ event, categories }: EventEditFormProps) {
 			editor.commands.setContent(description);
 		}
 	}, [description, editor]);
+
+	// Function to check if a date is before the start date (to disable invalid end dates)
+	const isDateBeforeStartDate = (date: Date) => {
+		if (!startDateState) return false;
+		
+		// Create copies to compare just the dates, not times
+		const startDateCopy = new Date(startDateState);
+		startDateCopy.setHours(0, 0, 0, 0);
+		
+		const dateCopy = new Date(date);
+		dateCopy.setHours(0, 0, 0, 0);
+		
+		return dateCopy < startDateCopy;
+	};
+
+	// Function to handle start date changes
+	const handleStartDateChange = (date: Date | undefined) => {
+		setStartDate(date);
+		
+		// If end date is before the new start date, update end date to match start date
+		if (date && endDateState && new Date(date) > new Date(endDateState)) {
+			setEndDate(date);
+		}
+	};
 
 	const combineDateTime = (date: Date, time: Date): Date => {
 		return new Date(
@@ -411,7 +429,7 @@ export function EventEditForm({ event, categories }: EventEditFormProps) {
 							<Calendar
 								mode="single"
 								selected={startDateState}
-								onSelect={setStartDate}
+								onSelect={handleStartDateChange}
 								initialFocus
 							/>
 						</PopoverContent>
@@ -454,6 +472,7 @@ export function EventEditForm({ event, categories }: EventEditFormProps) {
 								mode="single"
 								selected={endDateState}
 								onSelect={setEndDate}
+								disabled={isDateBeforeStartDate}
 								initialFocus
 							/>
 						</PopoverContent>
@@ -565,19 +584,21 @@ export function EventEditForm({ event, categories }: EventEditFormProps) {
 							/>
 						))}
 				</div>
-				<CldUploadButton
+				<CloudinaryUploader
 					uploadPreset="organizers"
 					className="bg-blue-500 px-4 py-2 text-white rounded-sm block"
-					onSuccess={(result) => {
+					onSuccess={(result: any) => {
 						const files = Array.isArray(result.info) ? result.info : [result.info];
-						const urls = files.map((file) => file.secure_url);
+						const urls = files.map((file: any) => file.secure_url);
 						setCoverImageUrl((prev) => [...prev, ...urls]);
 					}}
 					options={{
 						multiple: true,
 						resourceType: "auto",
 					}}
-				/>
+				>
+					Upload Cover Image
+				</CloudinaryUploader>
 			</div>
 
 			{/* Tickets */}

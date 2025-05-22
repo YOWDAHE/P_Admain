@@ -2,7 +2,7 @@
 
 import type React from "react";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,8 +11,8 @@ import { useToast } from "@/components/ui/use-toast";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmailVerification } from "./email-verification";
 import { IdVerification } from "./id-verification";
-import { CldUploadButton } from "next-cloudinary";
 import { registerOrganizer } from "@/app/login/_actions";
+import { CloudinaryUploader } from "@/components/cloudinary-uploader";
 import {
 	OrganierSuccessResponseType,
 	OrganizerResponseType,
@@ -173,7 +173,7 @@ export function SignUpForm() {
 						/>
 					</div>
 
-					<CldUploadButton
+					<CloudinaryUploader
 						uploadPreset="organizers"
 						className=" px-10 py-2 text-black text-sm rounded-sm block border-gray-300 border-2 w-full"
 						onSuccess={(e) => {
@@ -197,7 +197,7 @@ export function SignUpForm() {
 						}}
 					>
 						Upload Profile Photo
-					</CldUploadButton>
+					</CloudinaryUploader>
 
 					<div className="space-y-2">
 						<Label htmlFor="password">Password</Label>

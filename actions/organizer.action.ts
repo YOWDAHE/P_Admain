@@ -7,6 +7,7 @@ export interface UpdateOrganizerProfilePayload {
   logo_url: string;
   contact_phone: string;
   website_url: string;
+  verification_id?: string;
   social_media_links: {
     facebook: string;
     twitter: string;

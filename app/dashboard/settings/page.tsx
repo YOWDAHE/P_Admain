@@ -17,12 +17,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { CldUploadButton } from "next-cloudinary";
+import { Info, Shield, Upload, FileCheck, AlertTriangle } from "lucide-react";
+import { VerificationAlert } from "@/components/dashboard/verification-alert";
+import { CloudinaryUploader } from "@/components/cloudinary-uploader";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 const OrganizerProfilePage = () => {
 	const { user, getAccessToken, updateUser } = useAuth();
 	const [isOpen, setIsOpen] = useState(false);
 	const [isLoading, setIsLoading] = useState(false);
+	const [isVerificationLoading, setIsVerificationLoading] = useState(false);
 
 	const [formData, setFormData] = useState<UpdateOrganizerProfilePayload>({
 		name: user?.profile?.name || "",
@@ -30,6 +35,7 @@ const OrganizerProfilePage = () => {
 		logo_url: user?.profile?.logo_url || "",
 		contact_phone: user?.profile?.contact_phone || "",
 		website_url: user?.profile?.website_url || "",
+		verification_id: user?.profile?.verification_id || "",
 		social_media_links: {
 			facebook: user?.profile?.social_media_links?.facebook || "",
 			twitter: user?.profile?.social_media_links?.twitter || "",
@@ -45,6 +51,7 @@ const OrganizerProfilePage = () => {
 				logo_url: user?.profile?.logo_url || "",
 				contact_phone: user?.profile?.contact_phone || "",
 				website_url: user?.profile?.website_url || "",
+				verification_id: user?.profile?.verification_id || "",
 				social_media_links: {
 					facebook: user?.profile?.social_media_links?.facebook || "",
 					twitter: user?.profile?.social_media_links?.twitter || "",
@@ -108,12 +115,16 @@ const OrganizerProfilePage = () => {
 					logo_url: formData.logo_url,
 					contact_phone: formData.contact_phone,
 					website_url: formData.website_url,
+					verification_id: formData.verification_id,
 					social_media_links: socialMediaLinks,
 				};
 
 				updateUser({
 					...user,
-					profile: updatedProfile,
+					profile: {
+						...updatedProfile,
+						verification_id: updatedProfile.verification_id || ""
+					},
 				});
 
 				toast.success("Profile updated successfully!");
@@ -129,6 +140,55 @@ const OrganizerProfilePage = () => {
 		}
 	};
 
+	const handleVerificationUpload = async (url: string) => {
+		setIsVerificationLoading(true);
+		try {
+			const accessToken = getAccessToken();
+			if (!accessToken) {
+				toast.error("Authentication error. Please login again.");
+				return;
+			}
+
+			const verificationData = {
+				name: user?.profile?.name || "",
+				description: user?.profile?.description || "",
+				logo_url: user?.profile?.logo_url || "",
+				contact_phone: user?.profile?.contact_phone || "",
+				website_url: user?.profile?.website_url || "",
+				verification_id: url, // Only update this field
+				social_media_links: {
+					facebook: user?.profile?.social_media_links?.facebook || "",
+					twitter: user?.profile?.social_media_links?.twitter || "",
+					instagram: user?.profile?.social_media_links?.instagram || "",
+				},
+			};
+
+			const response = await updateOrganizerProfile(verificationData, accessToken);
+
+			if (response.success && response.data && user) {
+				// Update the user in auth context with the response data
+				const updatedProfile = {
+					...user.profile,
+					verification_id: url,
+				};
+
+				updateUser({
+					...user,
+					profile: updatedProfile,
+				});
+
+				toast.success("Verification document uploaded successfully!");
+			} else {
+				toast.error(response.message || "Failed to update verification document");
+			}
+		} catch (error) {
+			console.error("Error updating verification:", error);
+			toast.error("An unexpected error occurred");
+		} finally {
+			setIsVerificationLoading(false);
+		}
+	};
+
 	if (!user) {
 		return (
 			<div className="min-h-screen bg-gray-100 p-8 flex items-center justify-center">
@@ -141,7 +201,14 @@ const OrganizerProfilePage = () => {
 
 	return (
 		<div className="min-h-screen bg-gray-100 p-8">
-			<div className="max-w-4xl mx-auto bg-white shadow-lg rounded-lg overflow-hidden">
+			{/* Verification Alert */}
+			{user?.profile && (
+				<div className="max-w-4xl mx-auto mb-6">
+					<VerificationAlert verificationStatus={user.profile.verification_status} />
+				</div>
+			)}
+
+			<div className="max-w-4xl mx-auto bg-white shadow-lg rounded-lg overflow-hidden mb-6">
 				{/* Header */}
 				<div className="bg-blue-600 text-white p-6 flex items-center justify-between">
 					<div className="flex items-center">
@@ -213,7 +280,7 @@ const OrganizerProfilePage = () => {
 												/>
 											</div>
 										)}
-										<CldUploadButton
+										<CloudinaryUploader
 											uploadPreset="organizers"
 											className="px-10 py-2 text-black text-sm rounded-sm block border-gray-300 border-2 w-full hover:bg-gray-50"
 											onSuccess={(result: any) => {
@@ -234,7 +301,7 @@ const OrganizerProfilePage = () => {
 											}}
 										>
 											{formData.logo_url ? "Change Logo" : "Upload Logo"}
-										</CldUploadButton>
+										</CloudinaryUploader>
 									</div>
 
 									<div className="grid gap-2">
@@ -323,20 +390,8 @@ const OrganizerProfilePage = () => {
 						{user.profile?.contact_phone || "No contact number provided"}
 					</p>
 					<p>
-                        <strong>Email: </strong>
-                        {user.email}
-						{/* {user.profile?.website_url ? (
-							<a
-								href={user.profile.website_url}
-								target="_blank"
-								rel="noopener noreferrer"
-								className="text-blue-600 underline"
-							>
-								{user.profile.website_url}
-							</a>
-						) : (
-							"No website provided"
-						)} */}
+						<strong>Email: </strong>
+						{user.email}
 					</p>
 
 					<div>
@@ -389,6 +444,144 @@ const OrganizerProfilePage = () => {
 					</div>
 				</div>
 			</div>
+
+			{/* Separate Verification Section */}
+			<Card className="max-w-4xl mx-auto mb-6">
+				<CardHeader className="flex flex-row items-center gap-4">
+					<div className="rounded-full bg-blue-100 p-2">
+						<Shield className="h-6 w-6 text-blue-600" />
+					</div>
+					<div>
+						<CardTitle>Verification Status</CardTitle>
+						<CardDescription>
+							Verification is required to create public events on the platform
+						</CardDescription>
+					</div>
+				</CardHeader>
+				<CardContent>
+					{/* Status Display */}
+					<div className="mb-6">
+						<div
+							className={`flex items-center gap-2 font-medium ${
+								user.profile?.verification_status === "approved"
+									? "text-green-600"
+									: user.profile?.verification_status === "pending"
+									? "text-amber-600"
+									: user.profile?.verification_status === "denied"
+									? "text-red-600"
+									: "text-gray-600"
+							}`}
+						>
+							{user.profile?.verification_status === "approved" ? (
+								<>
+									<FileCheck className="h-5 w-5" /> Verified
+								</>
+							) : user.profile?.verification_status === "pending" ? (
+								<>
+									<Info className="h-5 w-5" /> Pending Verification
+								</>
+							) : user.profile?.verification_status === "denied" ? (
+								<>
+									<AlertTriangle className="h-5 w-5" /> Verification Denied
+								</>
+							) : (
+								<>
+									<Info className="h-5 w-5" /> Not Verified
+								</>
+							)}
+						</div>
+
+						{user.profile?.verification_status === "denied" && (
+							<Alert className="mt-4 bg-red-50 border-red-200">
+								<AlertTriangle className="h-4 w-4 text-red-600" />
+								<AlertTitle>Verification Denied</AlertTitle>
+								<AlertDescription>
+									Your previous verification document was rejected. Please upload a new
+									document.
+								</AlertDescription>
+							</Alert>
+						)}
+
+						{user.profile?.verification_status === "pending" && (
+							<Alert className="mt-4 bg-amber-50 border-amber-200">
+								<Info className="h-4 w-4 text-amber-600" />
+								<AlertTitle>Verification in Progress</AlertTitle>
+								<AlertDescription>
+									Your verification is currently being reviewed. This process typically
+									takes 1-2 business days.
+								</AlertDescription>
+							</Alert>
+						)}
+					</div>
+
+					{/* Current Document Display */}
+					{user.profile?.verification_id && (
+						<div className="mb-6">
+							<h3 className="text-sm font-medium mb-2">
+								Current Verification Document
+							</h3>
+							<div className="border border-gray-200 rounded-md p-4 flex items-center justify-center">
+								<img
+									src={user.profile.verification_id}
+									alt="Verification Document"
+									className="max-h-48 object-contain"
+								/>
+							</div>
+						</div>
+					)}
+
+					{/* Upload Section */}
+					<div
+						className={`border-2 rounded-md p-6 ${
+							user.profile?.verification_status === "denied"
+								? "border-red-300 bg-red-50"
+								: "border-dashed border-blue-300 bg-blue-50"
+						}`}
+					>
+						<h3 className="text-lg font-medium mb-4">
+							{user.profile?.verification_status === "approved"
+								? "Replace Verification Document"
+								: user.profile?.verification_id
+								? "Update Verification Document"
+								: "Upload Verification Document"}
+						</h3>
+
+						<p className="text-sm mb-4">
+							{user.profile?.verification_status === "approved"
+								? "Your organization is already verified. You can replace your verification document if needed."
+								: "Please upload a business document, business license, or government ID to verify your organization."}
+						</p>
+
+						<CloudinaryUploader
+							uploadPreset="organizers"
+							className={`px-10 py-3 text-white rounded-md block w-full ${
+								user.profile?.verification_status === "denied"
+									? "bg-red-600 hover:bg-red-700"
+									: "bg-blue-600 hover:bg-blue-700"
+							}`}
+							onSuccess={(result: any) => {
+								if (result.info && result.info.secure_url) {
+									const url = result.info.secure_url;
+									handleVerificationUpload(url);
+								} else {
+									toast.error("Failed to upload verification document");
+								}
+							}}
+							onError={(error: any) => {
+								console.error("Upload error:", error);
+								toast.error("Error uploading verification document");
+							}}
+						>
+							<Upload className="inline-block mr-2 h-5 w-5" />
+							{isVerificationLoading ? "Uploading..." : "Upload Verification Document"}
+						</CloudinaryUploader>
+
+						<p className="text-xs text-gray-600 mt-2">
+							Accepted formats: PDF, JPG, PNG (max 5MB)
+						</p>
+					</div>
+				</CardContent>
+			</Card>
 		</div>
 	);
 };

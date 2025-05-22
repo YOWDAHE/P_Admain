@@ -42,6 +42,8 @@ export interface Profile {
     contact_phone: string;
     website_url: string;
     social_media_links: SocialMediaLinks;
+    verification_status: string;
+    verification_id: string;
     created_at: Date;
     updated_at: Date;
     user: number;
@@ -81,6 +83,8 @@ export interface Profile {
     contact_phone:      string;
     website_url:        string;
     social_media_links: SocialMediaLinks;
+    verification_status: string;
+    verification_id:    string;
     created_at:         Date;
     updated_at:         Date;
     user:               number;
