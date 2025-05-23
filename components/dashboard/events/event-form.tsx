@@ -39,7 +39,6 @@ import { validateEventDescription } from "@/actions/ai-validation";
 import ValidationModal from "./validation-modal";
 import { Info } from "lucide-react";
 import { CloudinaryUploader } from "@/components/cloudinary-uploader";
-import { TagInput } from "@/components/ui/tag-input";
 
 interface EventFormProps {
 	categories: CategoryCreationResponseType[];
@@ -76,8 +75,8 @@ export function EventForm({ categories }: EventFormProps) {
 	const [isPublic, setIsPublic] = useState<boolean>(isVerified);
 	const [onsitePayment, setOnsitePayment] = useState<boolean>(false);
 	const [hashtags, setHashtags] = useState<string>("");
-	const [tickets, setTickets] = useState<{ name: string; price: string }[]>([
-		{ name: "", price: "" },
+	const [tickets, setTickets] = useState<{ name: string; price: string; description: string }[]>([
+		{ name: "", price: "", description: "" },
 	]);
 
 	const [validationMessage, setValidationMessage] = useState<string | null>(
@@ -127,7 +126,7 @@ export function EventForm({ categories }: EventFormProps) {
 	});
 
 	const handleAddTicket = () => {
-		setTickets([...tickets, { name: "", price: "" }]);
+		setTickets([...tickets, { name: "", price: "", description: "" }]);
 	};
 
 	const handleRemoveTicket = (index: number) => {
@@ -136,7 +135,7 @@ export function EventForm({ categories }: EventFormProps) {
 
 	const handleTicketChange = (
 		index: number,
-		field: "name" | "price",
+		field: "name" | "price" | "description",
 		value: string
 	) => {
 		const updatedTickets = [...tickets];
@@ -319,6 +318,7 @@ export function EventForm({ categories }: EventFormProps) {
 					event: eventResponse.data.id,
 					name: ticket.name,
 					price: ticket.price,
+					description: ticket.description || "",
 					valid_from: startDate.toISOString(),
 					valid_until: endDate.toISOString(),
 				};
@@ -357,17 +357,23 @@ export function EventForm({ categories }: EventFormProps) {
 					<div className="flex items-start">
 						<Info className="h-5 w-5 text-yellow-500 mt-0.5 mr-3" />
 						<div>
-							<h3 className="font-medium text-yellow-800">Account Verification Required</h3>
+							<h3 className="font-medium text-yellow-800">
+								Account Verification Required
+							</h3>
 							<p className="text-sm text-yellow-700 mt-1">
-								Your account is not verified yet. You can create events, but they will be private only.
-								To create public events, please complete the verification process in your 
-								<a href="/dashboard/settings" className="text-blue-600 underline ml-1">account settings</a>.
+								Your account is not verified yet. You can create events, but they will
+								be private only. To create public events, please complete the
+								verification process in your
+								<a href="/dashboard/settings" className="text-blue-600 underline ml-1">
+									account settings
+								</a>
+								.
 							</p>
 						</div>
 					</div>
 				</div>
 			)}
-			
+
 			{/* Event Title */}
 			<div className="space-y-2">
 				<Label htmlFor="title">Event Title *</Label>
@@ -483,7 +489,9 @@ export function EventForm({ categories }: EventFormProps) {
 								mode="single"
 								selected={endDate}
 								onSelect={setEndDate}
-								disabled={(date) => isDateBeforeToday(date) || isDateBeforeStartDate(date)}
+								disabled={(date) =>
+									isDateBeforeToday(date) || isDateBeforeStartDate(date)
+								}
 								initialFocus
 							/>
 						</PopoverContent>
@@ -572,16 +580,14 @@ export function EventForm({ categories }: EventFormProps) {
 							disabled={!isVerified}
 							className={!isVerified ? "opacity-50 cursor-not-allowed" : ""}
 						/>
-						<Label 
-							htmlFor="isPublic"
-							className={!isVerified ? "opacity-70" : ""}
-						>
+						<Label htmlFor="isPublic" className={!isVerified ? "opacity-70" : ""}>
 							Make this event public
 						</Label>
 					</div>
 					{!isVerified && (
 						<p className="text-xs text-gray-500 mt-1">
-							Only verified organizers can create public events. Please complete verification in settings to enable this option.
+							Only verified organizers can create public events. Please complete
+							verification in settings to enable this option.
 						</p>
 					)}
 				</div>
@@ -621,6 +627,7 @@ export function EventForm({ categories }: EventFormProps) {
 				)}
 				<CloudinaryUploader
 					uploadPreset="organizers"
+					sources={["local", "url", "image_search"]}
 					className="bg-blue-500 px-10 py-2 text-white rounded-sm block"
 					onSuccess={(result: any) => {
 						const files = Array.isArray(result.info) ? result.info : [result.info];
@@ -643,29 +650,67 @@ export function EventForm({ categories }: EventFormProps) {
 			<div className="space-y-4">
 				<Label>Tickets</Label>
 				{tickets.map((ticket, index) => (
-					<div key={index} className="flex items-center space-x-4">
-						<Input
-							placeholder="Ticket Name"
-							value={ticket.name}
-							onChange={(e) => handleTicketChange(index, "name", e.target.value)}
-							required
-						/>
-						<Input
-							placeholder="Ticket Price"
-							value={ticket.price}
-							onChange={(e) => handleTicketChange(index, "price", e.target.value)}
-							required
-						/>
-						<Button
-							type="button"
-							variant="destructive"
-							onClick={() => handleRemoveTicket(index)}
-						>
-							Remove
-						</Button>
+					<div key={index} className="grid grid-cols-1 gap-4 p-4 border rounded-md">
+						<div className="grid grid-cols-2 gap-4">
+							<div>
+								<Label htmlFor={`ticket-name-${index}`} className="text-sm mb-1 block">
+									Ticket Name
+								</Label>
+								<Input
+									id={`ticket-name-${index}`}
+									placeholder="Ticket Name"
+									value={ticket.name}
+									onChange={(e) => handleTicketChange(index, "name", e.target.value)}
+									required
+								/>
+							</div>
+							<div>
+								<Label htmlFor={`ticket-price-${index}`} className="text-sm mb-1 block">
+									Price ($)
+								</Label>
+								<Input
+									id={`ticket-price-${index}`}
+									placeholder="Ticket Price"
+									type="number"
+									min="0"
+									step="0.01"
+									value={ticket.price}
+									onChange={(e) => handleTicketChange(index, "price", e.target.value)}
+									required
+								/>
+							</div>
+						</div>
+						<div>
+							<Label
+								htmlFor={`ticket-description-${index}`}
+								className="text-sm mb-1 block"
+							>
+								Description
+							</Label>
+							<Textarea
+								id={`ticket-description-${index}`}
+								placeholder="Ticket Description (e.g., what's included, restrictions, etc.)"
+								value={ticket.description}
+								onChange={(e) =>
+									handleTicketChange(index, "description", e.target.value)
+								}
+								className="resize-none"
+								rows={2}
+							/>
+						</div>
+						<div className="flex justify-end">
+							<Button
+								type="button"
+								variant="destructive"
+								onClick={() => handleRemoveTicket(index)}
+								size="sm"
+							>
+								Remove Ticket
+							</Button>
+						</div>
 					</div>
 				))}
-				<Button type="button" onClick={handleAddTicket}>
+				<Button type="button" onClick={handleAddTicket} className="w-full">
 					Add Ticket
 				</Button>
 			</div>

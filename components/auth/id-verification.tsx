@@ -29,7 +29,7 @@ import { CloudinaryUploader } from "@/components/cloudinary-uploader";
 interface IdVerificationProps {
 	email: string;
 	organizerId: number;
-	onComplete: () => void;
+	onComplete: (verificationId: string) => void;
 }
 
 export function IdVerification({
@@ -64,7 +64,7 @@ export function IdVerification({
 				description: "Your identification has been submitted for verification.",
 			});
 
-			onComplete();
+			onComplete(idDocument);
 			router.push("/dashboard");
 		} catch (error: any) {
 			toast({
@@ -86,11 +86,10 @@ export function IdVerification({
 		setIsSubmitting(true);
 
 		try {
-			// Update user as unverified
 			await updateOrganizerVerification(organizerId, null, false);
 
 			setShowSkipWarning(false);
-			onComplete();
+			onComplete("");
 			router.push("/dashboard");
 		} catch (error: any) {
 			toast({
@@ -104,7 +103,7 @@ export function IdVerification({
 	};
 
 	return (
-		<>
+		<div>
 			<Card className="w-full max-w-md mx-auto">
 				<CardHeader>
 					<div className="flex items-center justify-center mb-4">
@@ -123,7 +122,7 @@ export function IdVerification({
 						<Label htmlFor="idUpload">Upload Identification</Label>
 						<div className="border-2 border-dashed border-gray-300 rounded-md p-6 flex flex-col items-center justify-center">
 							{idDocument ? (
-								<div className="relative w-full h-48 mb-4">
+								<div className="relative w-full h-20 mb-4">
 									<Image
 										src={idDocument}
 										alt="ID Document"
@@ -143,10 +142,12 @@ export function IdVerification({
 							) : (
 								<div className="text-center">
 									<p className="text-sm text-gray-500 mb-4">
-										Upload a clear photo of your ID card, National ID, passport, or driver's license
+										Upload a clear photo of your ID card, National ID, passport, or
+										driver's license
 									</p>
 									<CloudinaryUploader
-										uploadPreset="id_documents"
+										uploadPreset="organizers"
+										sources={["local", "url", "image_search"]}
 										className="bg-blue-500 px-6 py-2 text-white rounded-md"
 										onSuccess={(result) => {
 											if (
@@ -234,6 +235,6 @@ export function IdVerification({
 					</DialogFooter>
 				</DialogContent>
 			</Dialog>
-		</>
+		</div>
 	);
 }

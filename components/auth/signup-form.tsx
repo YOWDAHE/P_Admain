@@ -17,6 +17,7 @@ import {
 	OrganierSuccessResponseType,
 	OrganizerResponseType,
 } from "@/app/models/Organizers";
+import { updateOrganizerProfile } from "@/actions/organizer.action";
 
 export function SignUpForm() {
 	const [organizationName, setOrganizationName] = useState("");
@@ -29,11 +30,11 @@ export function SignUpForm() {
 	const [isLoading, setIsLoading] = useState(false);
 	const [profilePhoto, setProfilePhoto] = useState<string | null>(null);
 	const [organizerId, setOrganizerId] = useState<number | null>(null);
+	const [organizerData, setOrganizerData] = useState<OrganierSuccessResponseType | null>(null);
 	const router = useRouter();
 	const { toast } = useToast();
 
 	const handleSubmit = async (e: React.FormEvent) => {
-		// console.log("Submitting form ", profilePhoto);
 		e.preventDefault();
 		setIsLoading(true);
 
@@ -46,9 +47,8 @@ export function SignUpForm() {
 				throw new Error("Password must be at least 8 characters long");
 			}
 
-			const organizerData = {
+			const data = {
 				email,
-				// username: email.split("@")[0],
 				password,
 				name: organizationName,
 				description: "Organization description",
@@ -62,19 +62,17 @@ export function SignUpForm() {
 				logo_url: profilePhoto || "",
 			};
 
-			console.log(organizerData);
-
-			const resp: OrganizerResponseType = await registerOrganizer(organizerData);
+			const resp: OrganizerResponseType = await registerOrganizer(data);
 
 			if (isOrganierSuccessResponseType(resp)) {
 				setOrganizerId(resp.user.id);
+				setOrganizerData(resp); // Store the full response
 				setShowVerification(true);
 			}
 
 			toast({
 				title: "Success",
-				description:
-					"Account created successfully. Please check your email for verification.",
+				description: "Account created successfully. Please check your email for verification.",
 			});
 		} catch (error: any) {
 			console.error("Error creating account:", error);
@@ -96,6 +94,7 @@ export function SignUpForm() {
 		setConfirmPassword("");
 		setShowVerification(false);
 		setShowIdVerification(false);
+		setOrganizerData(null);
 
 		const loginTab = document.querySelector(
 			'[data-state="inactive"][data-value="login"]'
@@ -110,8 +109,43 @@ export function SignUpForm() {
 		setShowIdVerification(true);
 	};
 	
-	const handleIdVerificationComplete = () => {
-		router.push("/dashboard");
+	const handleIdVerificationComplete = async (verificationId: string) => {
+		try {
+			if (!organizerData?.user?.profile) {
+				throw new Error("Organization data is missing");
+			}
+
+			// Update the organization profile with the verification ID
+			const { profile } = organizerData.user;
+			const updateResp = await updateOrganizerProfile({
+				name: profile.name,
+				description: profile.description,
+				logo_url: profile.logo_url,
+				contact_phone: profile.contact_phone,
+				website_url: profile.website_url,
+				verification_id: verificationId,
+				social_media_links: profile.social_media_links,
+			});
+
+			if (updateResp.success) {
+				toast({
+					title: "Success",
+					description: "Verification document uploaded successfully!",
+				});
+				router.push("/dashboard");
+			} else {
+				throw new Error(updateResp.message);
+			}
+		} catch (error: any) {
+			console.error("Error updating verification:", error);
+			toast({
+				title: "Error",
+				description: error.message || "Failed to update verification. You can complete this step later in settings.",
+				variant: "destructive",
+			});
+			// Still redirect to dashboard even if verification update fails
+			router.push("/dashboard");
+		}
 	};
 
 	if (showIdVerification && organizerId) {
@@ -175,6 +209,7 @@ export function SignUpForm() {
 
 					<CloudinaryUploader
 						uploadPreset="organizers"
+						sources={["local", "url", "image_search"]}
 						className=" px-10 py-2 text-black text-sm rounded-sm block border-gray-300 border-2 w-full"
 						onSuccess={(e) => {
 							if (e.info && e.info.secure_url) {
@@ -224,7 +259,7 @@ export function SignUpForm() {
 					</div>
 
 					<Button type="submit" className="w-full" disabled={isLoading}>
-						{isLoading ? "Creating account..." : "Create Account"}
+						{isLoading ? "Creating account..." : "Continue"}
 					</Button>
 				</form>
 			</CardContent>

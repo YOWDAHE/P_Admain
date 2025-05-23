@@ -23,13 +23,9 @@ export interface UpdateOrganizerProfilePayload {
  */
 export const updateOrganizerProfile = async (
   profileData: UpdateOrganizerProfilePayload,
-  accessToken: string
+  accessToken?: string
 ): Promise<{ success: boolean; data?: any; message: string }> => {
   try {
-    if (!accessToken) {
-      return { success: false, message: 'No access token available.' };
-    }
-
     const response = await axiosInstance.patch(
       '/organizations/profile/',
       profileData,

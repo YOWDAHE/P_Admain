@@ -85,7 +85,7 @@ export function EventEditForm({ event, categories }: EventEditFormProps) {
 	);
 	const [tickets, setTickets] = useState<TicketResponseType[]>([]);
 	const [newTickets, setNewTickets] = useState<
-		{ name: string; price: string }[]
+		{ name: string; price: string; description: string }[]
 	>([]);
 
 	// Add validation state
@@ -299,6 +299,7 @@ export function EventEditForm({ event, categories }: EventEditFormProps) {
 					event: event.id,
 					name: ticket.name,
 					price: ticket.price,
+					description: ticket.description,
 					valid_from: startDate.toISOString(),
 					valid_until: endDate.toISOString(),
 				};
@@ -329,7 +330,7 @@ export function EventEditForm({ event, categories }: EventEditFormProps) {
 	};
 
 	const handleAddTicket = () => {
-		setNewTickets([...newTickets, { name: "", price: "" }]);
+		setNewTickets([...newTickets, { name: "", price: "", description: "" }]);
 	};
 
 	const handleRemoveNewTicket = async (index: number) => {
@@ -342,7 +343,7 @@ export function EventEditForm({ event, categories }: EventEditFormProps) {
 
 	const handleTicketChange = (
 		index: number,
-		field: "name" | "price",
+		field: "name" | "price" | "description",
 		value: string
 	) => {
 		const updatedTickets = [...tickets];
@@ -351,7 +352,7 @@ export function EventEditForm({ event, categories }: EventEditFormProps) {
 	};
 	const handleNewTicketChange = (
 		index: number,
-		field: "name" | "price",
+		field: "name" | "price" | "description",
 		value: string
 	) => {
 		const updatedTickets = [...newTickets];
@@ -381,24 +382,26 @@ export function EventEditForm({ event, categories }: EventEditFormProps) {
 					<MenuBar editor={editor} />
 					<EditorContent editor={editor} />
 				</div>
-				
+
 				{/* Add validation message */}
 				{validationMessage && (
-					<div className={`mt-2 text-sm rounded-md p-2 ${
-						isDescriptionValid === true 
-							? "bg-green-50 text-green-700 border border-green-200" 
-							: isDescriptionValid === false
+					<div
+						className={`mt-2 text-sm rounded-md p-2 ${
+							isDescriptionValid === true
+								? "bg-green-50 text-green-700 border border-green-200"
+								: isDescriptionValid === false
 								? "bg-red-50 text-red-700 border border-red-200"
 								: "bg-blue-50 text-blue-700 border border-blue-200"
-					}`}>
+						}`}
+					>
 						{validationMessage}
 					</div>
 				)}
-				
+
 				{/* Add validation button */}
-				<Button 
-					type="button" 
-					variant="outline" 
+				<Button
+					type="button"
+					variant="outline"
 					size="sm"
 					className="mt-2"
 					onClick={() => validateDescription(true)}
@@ -574,18 +577,29 @@ export function EventEditForm({ event, categories }: EventEditFormProps) {
 				<div className="flex flex-wrap gap-4">
 					{coverImageUrl.length > 0 &&
 						coverImageUrl.map((url, index) => (
-							<Image
-								key={index}
-								src={url}
-								width={120}
-								height={120}
-								alt={`Cover ${index + 1}`}
-								className="rounded-md"
-							/>
+							<div key={index} className="relative">
+								<Button
+									type="button"
+									variant="destructive"
+									size="icon"
+									className="absolute -top-2 -right-2 h-6 w-6 rounded-full"
+									onClick={() => setCoverImageUrl(coverImageUrl.filter((_, i) => i !== index))}
+								>
+									<span className="text-xs">×</span>
+								</Button>
+								<Image
+									src={url}
+									width={120}
+									height={120}
+									alt={`Cover ${index + 1}`}
+									className="rounded-md"
+								/>
+							</div>
 						))}
 				</div>
 				<CloudinaryUploader
 					uploadPreset="organizers"
+					sources={["local", "url", "image_search"]}
 					className="bg-blue-500 px-4 py-2 text-white rounded-sm block"
 					onSuccess={(result: any) => {
 						const files = Array.isArray(result.info) ? result.info : [result.info];
@@ -604,57 +618,149 @@ export function EventEditForm({ event, categories }: EventEditFormProps) {
 			{/* Tickets */}
 			<div className="space-y-4">
 				<Label>Tickets</Label>
-				<br />
+
+				{/* Existing Tickets */}
 				{tickets &&
 					tickets.map((ticket, index) => (
-						<div key={index} className="flex items-center space-x-4">
-							<Input
-								placeholder="Ticket Name"
-								value={ticket.name}
-								// onChange={(e) => handleTicketChange(index, "name", e.target.value)}
-								disabled
-							/>
-							<Input
-								placeholder="Ticket Price"
-								value={ticket.price}
-								// onChange={(e) => handleTicketChange(index, "price", e.target.value)}
-								disabled
-							/>
-							<Button
-								type="button"
-								variant="destructive"
-								onClick={() => handleRemoveTicket(index)}
-							>
-								Remove
-							</Button>
+						<div key={index} className="grid grid-cols-1 gap-4 p-4 border rounded-md">
+							<div className="grid grid-cols-2 gap-4">
+								<div>
+									<Label htmlFor={`ticket-name-${index}`} className="text-sm mb-1 block">
+										Ticket Name
+									</Label>
+									<Input
+										disabled
+										id={`ticket-name-${index}`}
+										placeholder="Ticket Name"
+										value={ticket.name}
+										onChange={(e) => handleTicketChange(index, "name", e.target.value)}
+									/>
+								</div>
+								<div>
+									<Label
+										htmlFor={`ticket-price-${index}`}
+										className="text-sm mb-1 block"
+									>
+										Price ($)
+									</Label>
+									<Input
+										disabled
+										id={`ticket-price-${index}`}
+										placeholder="Ticket Price"
+										type="number"
+										min="0"
+										step="0.01"
+										value={ticket.price}
+										onChange={(e) => handleTicketChange(index, "price", e.target.value)}
+									/>
+								</div>
+							</div>
+							<div>
+								<Label
+									htmlFor={`ticket-description-${index}`}
+									className="text-sm mb-1 block"
+								>
+									Description
+								</Label>
+								<Textarea
+									disabled
+									id={`ticket-description-${index}`}
+									placeholder="Ticket Description (e.g., what's included, restrictions, etc.)"
+									value={ticket.description}
+									onChange={(e) =>
+										handleTicketChange(index, "description", e.target.value)
+									}
+									className="resize-none"
+									rows={2}
+								/>
+							</div>
+							<div className="flex justify-end">
+								<Button
+									type="button"
+									variant="destructive"
+									onClick={() => handleRemoveTicket(index)}
+									size="sm"
+								>
+									Remove Ticket
+								</Button>
+							</div>
 						</div>
 					))}
+
+				{/* New Tickets */}
 				{newTickets.map((ticket, index) => (
-					<div key={index} className="flex items-center space-x-4">
-						<Input
-							placeholder="Ticket Name"
-							value={ticket.name}
-							onChange={(e) => handleNewTicketChange(index, "name", e.target.value)}
-							required
-						/>
-						<Input
-							placeholder="Ticket Price"
-							value={ticket.price}
-							onChange={(e) => handleNewTicketChange(index, "price", e.target.value)}
-							required
-						/>
-						{newTickets.length > 0 && (
-							<Button
-								type="button"
-								variant="destructive"
-								onClick={() => handleRemoveNewTicket(index)}
+					<div
+						key={`new-${index}`}
+						className="grid grid-cols-1 gap-4 p-4 border rounded-md border-green-200 bg-green-50"
+					>
+						<div className="grid grid-cols-2 gap-4">
+							<div>
+								<Label
+									htmlFor={`new-ticket-name-${index}`}
+									className="text-sm mb-1 block"
+								>
+									Ticket Name
+								</Label>
+								<Input
+									id={`new-ticket-name-${index}`}
+									placeholder="Ticket Name"
+									value={ticket.name}
+									onChange={(e) => handleNewTicketChange(index, "name", e.target.value)}
+									required
+								/>
+							</div>
+							<div>
+								<Label
+									htmlFor={`new-ticket-price-${index}`}
+									className="text-sm mb-1 block"
+								>
+									Price ($)
+								</Label>
+								<Input
+									id={`new-ticket-price-${index}`}
+									placeholder="Ticket Price"
+									type="number"
+									min="0"
+									step="0.01"
+									value={ticket.price}
+									onChange={(e) => handleNewTicketChange(index, "price", e.target.value)}
+									required
+								/>
+							</div>
+						</div>
+						<div>
+							<Label
+								htmlFor={`new-ticket-description-${index}`}
+								className="text-sm mb-1 block"
 							>
-								Remove
-							</Button>
-						)}
+								Description
+							</Label>
+							<Textarea
+								id={`new-ticket-description-${index}`}
+								placeholder="Ticket Description (e.g., what's included, restrictions, etc.)"
+								value={ticket.description}
+								onChange={(e) =>
+									handleNewTicketChange(index, "description", e.target.value)
+								}
+								className="resize-none"
+								rows={2}
+							/>
+						</div>
+						<div className="flex justify-end">
+							{newTickets.length > 0 && (
+								<Button
+									type="button"
+									variant="destructive"
+									onClick={() => handleRemoveNewTicket(index)}
+									size="sm"
+								>
+									Remove Ticket
+								</Button>
+							)}
+						</div>
 					</div>
 				))}
-				<Button type="button" onClick={handleAddTicket}>
+				<Button type="button" onClick={handleAddTicket} className="w-full">
 					Add Ticket
 				</Button>
 			</div>
@@ -669,15 +775,14 @@ export function EventEditForm({ event, categories }: EventEditFormProps) {
 					Cancel
 				</Button>
 				<Button type="submit" disabled={isLoading || isValidating}>
-					{isLoading 
-						? "Updating Event..." 
+					{isLoading
+						? "Updating Event..."
 						: isValidating
-							? "Validating..."
-							: "Update Event"
-					}
+						? "Validating..."
+						: "Update Event"}
 				</Button>
 			</div>
-			
+
 			{/* Validation Modal */}
 			<ValidationModal
 				isOpen={showValidationModal}

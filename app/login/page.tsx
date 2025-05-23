@@ -4,7 +4,7 @@ import { SignUpForm } from "@/components/auth/signup-form"
 
 export default function LoginPage() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-gray-900 px-4 py-12 sm:px-6 lg:px-8">
+    <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-gray-900 px-4 py-12 sm:px-6 lg:px-8 overflow-scroll">
       <div className="w-full max-w-md space-y-8">
         <div className="text-center">
           <h1 className="text-3xl font-extrabold text-gray-900 dark:text-white">Event App Admin</h1>

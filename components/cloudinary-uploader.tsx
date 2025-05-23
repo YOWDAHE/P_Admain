@@ -18,13 +18,29 @@ const DynamicCldUploadButton = dynamic(
   }
 );
 
+// Define the allowed source types based on Cloudinary's options
+type CloudinarySourceType = 
+  | "local" 
+  | "url" 
+  | "camera" 
+  | "image_search" 
+  | "dropbox" 
+  | "facebook" 
+  | "gettyimages" 
+  | "google_drive" 
+  | "instagram" 
+  | "istock" 
+  | "shutterstock" 
+  | "unsplash";
+
 interface CloudinaryUploaderProps {
   children: React.ReactNode;
   uploadPreset: string;
   onSuccess?: (result: any) => void;
   onError?: (error: any) => void;
   className?: string;
-  [x: string]: any; // Allow any other props
+  sources?: CloudinarySourceType[]; // Use the correct type
+  [x: string]: any; 
 }
 
 export function CloudinaryUploader({
@@ -33,6 +49,7 @@ export function CloudinaryUploader({
   onSuccess,
   onError,
   className,
+  sources = ["local", "url", "camera", "image_search"], // Default sources
   ...props
 }: CloudinaryUploaderProps) {
   // Set initial loading state
@@ -105,6 +122,9 @@ export function CloudinaryUploader({
       onSuccess={handleSuccessWrapper}
       onError={handleErrorWrapper}
       onClick={handleClick}
+      options={{
+        sources: sources,
+      }}
       {...props}
     >
       {children}

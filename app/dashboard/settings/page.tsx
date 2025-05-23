@@ -17,10 +17,26 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Info, Shield, Upload, FileCheck, AlertTriangle } from "lucide-react";
+import {
+	Info,
+	Shield,
+	Upload,
+	FileCheck,
+	AlertTriangle,
+	X,
+	Camera,
+	Pen,
+} from "lucide-react";
 import { VerificationAlert } from "@/components/dashboard/verification-alert";
 import { CloudinaryUploader } from "@/components/cloudinary-uploader";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+	Card,
+	CardContent,
+	CardDescription,
+	CardFooter,
+	CardHeader,
+	CardTitle,
+} from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 const OrganizerProfilePage = () => {
@@ -28,6 +44,7 @@ const OrganizerProfilePage = () => {
 	const [isOpen, setIsOpen] = useState(false);
 	const [isLoading, setIsLoading] = useState(false);
 	const [isVerificationLoading, setIsVerificationLoading] = useState(false);
+	const [isProfileImageOpen, setIsProfileImageOpen] = useState(false);
 
 	const [formData, setFormData] = useState<UpdateOrganizerProfilePayload>({
 		name: user?.profile?.name || "",
@@ -123,7 +140,7 @@ const OrganizerProfilePage = () => {
 					...user,
 					profile: {
 						...updatedProfile,
-						verification_id: updatedProfile.verification_id || ""
+						verification_id: updatedProfile.verification_id || "",
 					},
 				});
 
@@ -137,6 +154,49 @@ const OrganizerProfilePage = () => {
 			toast.error("An unexpected error occurred");
 		} finally {
 			setIsLoading(false);
+		}
+	};
+
+	const handleProfileLogoUpdate = async (url: string) => {
+		try {
+			const accessToken = getAccessToken();
+			if (!accessToken) {
+				toast.error("Authentication error. Please login again.");
+				return;
+			}
+
+			const logoData = {
+				...formData,
+				logo_url: url,
+			};
+
+			const response = await updateOrganizerProfile(logoData, accessToken);
+
+			if (response.success && response.data && user) {
+				// Update the user in auth context with the response data
+				const updatedProfile = {
+					...user.profile,
+					logo_url: url,
+				};
+
+				updateUser({
+					...user,
+					profile: updatedProfile,
+				});
+
+				setFormData({
+					...formData,
+					logo_url: url,
+				});
+
+				toast.success("Profile logo updated successfully!");
+				setIsProfileImageOpen(false);
+			} else {
+				toast.error(response.message || "Failed to update profile logo");
+			}
+		} catch (error) {
+			console.error("Error updating profile logo:", error);
+			toast.error("An unexpected error occurred");
 		}
 	};
 
@@ -212,11 +272,57 @@ const OrganizerProfilePage = () => {
 				{/* Header */}
 				<div className="bg-blue-600 text-white p-6 flex items-center justify-between">
 					<div className="flex items-center">
-						<img
-							src={user.profile?.logo_url || "/placeholder-logo.png"}
-							alt={`${user.profile?.name || "Organization"} Logo`}
-							className="w-20 h-20 rounded-full object-cover mr-6"
-						/>
+						<div className="relative">
+							<div className="p-4 flex justify-center">
+								<CloudinaryUploader
+									uploadPreset="organizers"
+									className="p-2 rounded-full bg-black/90 absolute bottom-0 right-3"
+									sources={["local", "url", "image_search"]}
+									onSuccess={(result: any) => {
+										if (result.info && result.info.secure_url) {
+											const url = result.info.secure_url;
+											handleProfileLogoUpdate(url);
+										} else {
+											toast.error("Failed to upload logo");
+										}
+									}}
+									onError={(error: any) => {
+										console.error("Upload error:", error);
+										toast.error("Error uploading logo");
+									}}
+								>
+									<Pen className="h-4 w-4" />
+								</CloudinaryUploader>
+							</div>
+							<Dialog open={isProfileImageOpen} onOpenChange={setIsProfileImageOpen}>
+								<DialogTrigger asChild>
+									<img
+										src={user.profile?.logo_url || "/placeholder-logo.png"}
+										alt={`${user.profile?.name || "Organization"} Logo`}
+										className="w-20 h-20 rounded-full object-cover mr-6 cursor-pointer hover:opacity-90 transition-opacity border-2 border-white"
+									/>
+								</DialogTrigger>
+								<DialogContent className="sm:max-w-[90vw] max-h-[90vh] p-0 overflow-hidden flex flex-col">
+									<div className="relative h-full">
+										<Button
+											variant="ghost"
+											size="icon"
+											className="absolute top-2 right-2 text-white bg-black/50 hover:bg-black/70 z-10 rounded-full"
+											onClick={() => setIsProfileImageOpen(false)}
+										>
+											<X className="h-5 w-5" />
+										</Button>
+										<div className="flex items-center justify-center h-[calc(90vh-80px)] bg-black">
+											<img
+												src={user.profile?.logo_url || "/placeholder-logo.png"}
+												alt={`${user.profile?.name || "Organization"} Logo`}
+												className="max-w-full max-h-full object-contain"
+											/>
+										</div>
+									</div>
+								</DialogContent>
+							</Dialog>
+						</div>
 						<div>
 							<h1 className="text-2xl font-bold">
 								{user.profile?.name || "Organization Name"}
@@ -282,7 +388,8 @@ const OrganizerProfilePage = () => {
 										)}
 										<CloudinaryUploader
 											uploadPreset="organizers"
-											className="px-10 py-2 text-black text-sm rounded-sm block border-gray-300 border-2 w-full hover:bg-gray-50"
+											className="px-10 py-2 text-black text-sm rounded-sm block border-gray-300 border-2 w-full hover:bg-gray-50 z-[999]"
+											sources={["local", "url", "image_search"]}
 											onSuccess={(result: any) => {
 												if (result.info && result.info.secure_url) {
 													const url = result.info.secure_url;
@@ -298,6 +405,9 @@ const OrganizerProfilePage = () => {
 											onError={(error: any) => {
 												console.error("Upload error:", error);
 												toast.error("Error uploading logo");
+											}}
+											onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
+												e.stopPropagation();
 											}}
 										>
 											{formData.logo_url ? "Change Logo" : "Upload Logo"}
@@ -559,6 +669,7 @@ const OrganizerProfilePage = () => {
 									? "bg-red-600 hover:bg-red-700"
 									: "bg-blue-600 hover:bg-blue-700"
 							}`}
+							sources={["local", "url", "camera", "image_search"]}
 							onSuccess={(result: any) => {
 								if (result.info && result.info.secure_url) {
 									const url = result.info.secure_url;
