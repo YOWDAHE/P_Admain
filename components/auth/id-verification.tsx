@@ -86,7 +86,7 @@ export function IdVerification({
 		setIsSubmitting(true);
 
 		try {
-			await updateOrganizerVerification(organizerId, null, false);
+			// await updateOrganizerVerification(organizerId, null, false);
 
 			setShowSkipWarning(false);
 			onComplete("");

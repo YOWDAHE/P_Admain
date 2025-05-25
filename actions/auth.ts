@@ -51,7 +51,7 @@ export async function updateOrganizerVerification(
   isVerificationAttempted: boolean
 ): Promise<any> {
   try {
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/organizers/${organizerId}/verification`, {
+    const response = await fetch(`https://www.mindahun.pro.et/api/v1/organizers/${organizerId}/verify`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
