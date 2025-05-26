@@ -61,68 +61,68 @@ const sidebarLinks = [
 ];
 
 export function Sidebar() {
-	const pathname = usePathname();
-	const { user } = useAuth();
+    const pathname = usePathname();
+    const { user } = useAuth();
 
-	return (
-		<div className="hidden md:flex md:w-64 md:flex-col bg-[#40189d] text-white">
-			<div className="flex flex-col flex-grow pt-5 overflow-y-auto">
-				<div className="flex flex-row items-center gap-3 flex-shrink-0 px-4 mb-4">
-					<Avatar className="h-10 w-10 border-2 border-white">
-						<AvatarImage src={user?.profile.logo_url} alt={user?.profile.name || "Organization"} />
-						<AvatarFallback className="bg-primary text-primary-foreground">
-							{user?.profile.name?.substring(0, 2).toUpperCase() || "OR"}
-						</AvatarFallback>
-					</Avatar>
-					<div>
-						<h1 className="text-xl font-bold">{user?.profile.name ?? ""} Admin</h1>
-					</div>
-				</div>
-				<div className="flex-1 flex flex-col">
-					<nav className="flex-1 px-2 pb-4">
-						{sidebarLinks.map((link) => {
-							const Icon = link.icon;
+    return (
+        <div className="hidden md:flex md:w-64 md:flex-col bg-blue-900 text-white">
+            <div className="flex flex-col flex-grow pt-5 overflow-y-auto">
+                <div className="flex flex-row items-center gap-3 flex-shrink-0 px-4 mb-4">
+                    <Avatar className="h-10 w-10 border-2 border-blue-200 bg-white">
+                        <AvatarImage src={user?.profile.logo_url} alt={user?.profile.name || "Organization"} />
+                        <AvatarFallback className="bg-blue-700 text-white">
+                            {user?.profile.name?.substring(0, 2).toUpperCase() || "OR"}
+                        </AvatarFallback>
+                    </Avatar>
+                    <div>
+                        <h1 className="text-xl font-bold">{user?.profile.name ?? ""} Admin</h1>
+                    </div>
+                </div>
+                <div className="flex-1 flex flex-col">
+                    <nav className="flex-1 px-2 pb-4">
+                        {sidebarLinks.map((link) => {
+                            const Icon = link.icon;
               const isExactMatch = pathname === link.href;
               const isNestedMatch = pathname.startsWith(link.href + "/");
               const isSelected = link.exact
-															? isExactMatch
-															: isExactMatch || isNestedMatch;
+                                                            ? isExactMatch
+                                                            : isExactMatch || isNestedMatch;
 
-							return (
-								<div
-									key={link.name}
-									className={cn("mb-1")}
-								>
-									{link.name == "" ? (
-										<div
-											className={cn(
-												"group flex items-center px-4 py-3 text-sm font-medium",
-												isSelected
-													? "bg-[#f0f4f5] text-[#40189d]"
-													: "text-white hover:bg-[#5a3ab0]"
-											)}
-										></div>
-									) : (
-										<Link
-											key={link.name}
-											href={link.href}
-											className={cn(
-												"group flex items-center px-4 py-3 text-sm font-medium transition-colors duration-200",
-												isSelected
-													? "bg-[#f0f4f5] text-[#40189d]"
-													: "text-white hover:bg-[#5a3ab0]"
-											)}
-										>
-											<Icon className="mr-3 h-5 w-5" />
-											{link.name}
-										</Link>
-									)}
-								</div>
-							);
-						})}
-					</nav>
-				</div>
-			</div>
-		</div>
-	);
+                            return (
+                                <div
+                                    key={link.name}
+                                    className={cn("mb-1")}
+                                >
+                                    {link.name == "" ? (
+                                        <div
+                                            className={cn(
+                                                "group flex items-center px-4 py-3 text-sm font-medium",
+                                                isSelected
+                                                    ? "bg-blue-100 text-blue-900"
+                                                    : "text-white hover:bg-blue-800"
+                                            )}
+                                        ></div>
+                                    ) : (
+                                        <Link
+                                            key={link.name}
+                                            href={link.href}
+                                            className={cn(
+                                                "group flex items-center px-4 py-3 text-sm font-medium transition-colors duration-200",
+                                                isSelected
+                                                    ? "bg-blue-100 text-blue-900"
+                                                    : "text-white hover:bg-blue-800"
+                                            )}
+                                        >
+                                            <Icon className="mr-3 h-5 w-5" />
+                                            {link.name}
+                                        </Link>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </nav>
+                </div>
+            </div>
+        </div>
+    );
 }
